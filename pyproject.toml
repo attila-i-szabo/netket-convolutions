@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netket-convolutions"
+version = "0.1"
+authors = [
+  { name="Attila Szabó", email="attila.szabo@physik.uzh.ch" },
+]
+description = "Convolutional layers for use with NetKet"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "Apache-2.0"
+license-files = ["LICEN[CS]E*"]
+dependencies = ["netket>=3.0"]
