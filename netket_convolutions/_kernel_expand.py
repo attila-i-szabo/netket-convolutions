@@ -6,13 +6,14 @@ from typing import Callable
 
 import numpy as np
 import jax.numpy as jnp
+from einops import rearrange
 
 from netket.utils.types import Array, DType
 
 
 def expanded_index(permutation: Array[int], shape: tuple[int]) -> np.ndarray[int]:
     """Computes indices that map (n_input) dimension of kernels to
-    (input_per_cell, output_per_cell, *shape) as used in FFT-based group convolution.
+    (output_per_cell, input_per_cell, *shape) as used in FFT-based group convolution.
 
     Args:
         permutation: (n_output, n_input) integer array, containing the
@@ -34,8 +35,8 @@ def expanded_index(permutation: Array[int], shape: tuple[int]) -> np.ndarray[int
     return (
         permutation[:, :input_per_cell]
         .reshape(n_cells, output_per_cell, input_per_cell)
-        .transpose(2, 1, 0)
-        .reshape(input_per_cell, output_per_cell, *shape)
+        .transpose(1, 2, 0)
+        .reshape(output_per_cell, input_per_cell, *shape)
     )
 
 
@@ -67,7 +68,8 @@ def kernel_expand_full(
     The input kernel is expected to have shape
         (output_features, input_features, n_input)
     The output kernel has shape
-        (output_features, input_features, input_per_cell, output_per_cell, *shape)
+        ([output_features, output_per_cell], [input_features, input_per_cell], *shape)
+    (pairs of axes in brackets are fused)
 
     Args:
         permutation: (n_output, n_input) integer array, containing the
@@ -93,6 +95,7 @@ def kernel_expand_full(
             kernel = kernel.reshape(*kernel.shape[:-1], 1, 1, *shape)
         else:
             kernel = kernel[..., index]
+        kernel = rearrange(kernel, "of if oc ic ... -> (of oc) (if ic) ...")
         return kernel.astype(dtype)
 
     return expand
@@ -111,7 +114,9 @@ def kernel_expand_clipped(
     The input kernel is expected to have shape
         (output_features, input_features, n_input)
     The output kernel has shape
-        (output_features, input_features, input_per_cell, output_per_cell, *shape_clip)
+        ([output_features, output_per_cell], [input_features, input_per_cell], *shape_clip)
+    where shape_clip is the shape of the smallest rectangular block in which
+    all the expanded kernels can be fit.
 
     Also returns the sequence of (left_pad, right_pad) tuples required for PBC
     convolutions.
@@ -165,6 +170,8 @@ def kernel_expand_clipped(
     )  # invalid index for positions not under the mask
 
     def expand(kernel: jnp.ndarray) -> jnp.ndarray:
-        return jnp.take(kernel, mask_in_index, axis=-1, fill_value=0).astype(dtype)
+        kernel = jnp.take(kernel, mask_in_index, axis=-1, fill_value=0)
+        kernel = rearrange(kernel, "of if oc ic ... -> (of oc) (if ic) ...")
+        return kernel.astype(dtype)
 
     return expand, tuple(padding)
