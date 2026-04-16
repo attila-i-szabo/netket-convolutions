@@ -1,4 +1,4 @@
-"""GCNN embedding layers"""
+"""GCNN embedding linear layers."""
 
 from typing import Any
 
@@ -95,9 +95,10 @@ class DenseSymmMatrix(Module):
             (self.features, in_features, self.kernel_size),
             self.param_dtype,
         )
-        kernel = self.unmask(kernel)
 
         x, kernel, bias = promote_dtype(x, kernel, bias, dtype=None)
+
+        kernel = self.unmask(kernel)
 
         # Converts the convolutional kernel of shape (self.features, in_features, n_sites)
         # to a full dense kernel of shape (self.features, in_features, n_symm, n_sites).
@@ -189,9 +190,10 @@ class DenseSymmFFT(Module):
             (self.features, in_features, self.kernel_size),
             self.param_dtype,
         )
-        kernel = self.expand(kernel)
 
         x, kernel, bias = promote_dtype(x, kernel, bias, dtype=None)
+
+        kernel = self.expand(kernel)
 
         x = _periodic_conv.conv_fft(
             x, kernel, force_full_fft=self.force_full_fft, precision=self.precision
@@ -270,9 +272,10 @@ class DenseSymmLAX(Module):
             (self.features, in_features, self.kernel_size),
             self.param_dtype,
         )
-        kernel = self.expand(kernel)
 
         x, kernel, bias = promote_dtype(x, kernel, bias, dtype=None)
+
+        kernel = self.expand(kernel)
 
         x = _periodic_conv.conv_lax(x, kernel, self.padding, precision=self.precision)
 
