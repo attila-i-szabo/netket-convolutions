@@ -16,7 +16,124 @@ from netket.utils import HashableArray
 from netket.utils.types import Array, DType, NNInitFunc
 
 from ._base import default_equivariant_initializer
-from . import equivariant_linear
+from . import equivariant_linear, symmetric_linear
+
+
+def DenseSymm(
+    algorithm: Literal["FFT", "LAX", "matrix"],
+    features: int,
+    symmetries: HashableArray | None = None,
+    shape: tuple[int] | None = None,
+    use_bias: bool = True,
+    mask: HashableArray | None = None,
+    param_dtype: DType = jnp.float64,
+    precision: PrecisionLike = None,
+    kernel_init: NNInitFunc = default_equivariant_initializer,
+    bias_init: NNInitFunc = zeros,
+) -> Module:
+    """General GCNN embedding layer.
+
+    Args:
+        algorithm: Convolution algorithm to use.
+        features: The number of output features.
+            Will be the second dimension of the output.
+        symmetries: A group of symmetry operations or array of permutation indices
+            over which the layer should be invariant.
+
+            Numpy/Jax arrays must be wrapped into an :class:`netket.utils.HashableArray`.
+            May be omitted for simple convolutions.
+            Must be omitted if `algorithm="matrix"` and `shape` is supplied.
+        shape: Tuple that corresponds to shape of lattice.
+
+            Must be supplied unless `algorithm="matrix"` and `product_table` is given.
+        use_bias: Whether to add a bias to the output (default: True)
+        mask: Array of shape `(n_symm,)`, used to restrict the convolutional kernel.
+            Only parameters with nonzero mask are used.
+
+            For best performance, a boolean mask should be used.
+        param_dtype: The dtype of the weights.
+        precision: numerical precision of the computation,
+            see :class:`jax.lax.Precision` for details.
+        kernel_init: Initializer for the kernel. Defaults to Lecun normal.
+        bias_init: Initializer for the bias. Defaults to zero initialization.
+    """
+    layer_type = {
+        "FFT": symmetric_linear.DenseSymmFFT,
+        "LAX": symmetric_linear.DenseSymmLAX,
+        "matrix": symmetric_linear.DenseSymmMatrix,
+    }[algorithm]
+    return layer_type(
+        features=features,
+        symmetries=symmetries,
+        shape=shape,
+        use_bias=use_bias,
+        mask=mask,
+        param_dtype=param_dtype,
+        precision=precision,
+        kernel_init=kernel_init,
+        bias_init=bias_init,
+    )
+
+
+def Equivariant(
+    algorithm: Literal["FFT", "LAX", "matrix"],
+    features: int,
+    feature_group_count: int = 1,
+    product_table: HashableArray | None = None,
+    shape: tuple[int] | None = None,
+    use_bias: bool = True,
+    mask: HashableArray | None = None,
+    param_dtype: DType = jnp.float64,
+    precision: PrecisionLike = None,
+    kernel_init: NNInitFunc = default_equivariant_initializer,
+    bias_init: NNInitFunc = zeros,
+) -> Module:
+    """General equivariant layer.
+
+    Args:
+        algorithm: Convolution algorithm to use.
+        features: The number of output features.
+            Will be the second dimension of the output.
+        feature_group_count: Number of feature groups for convolution.
+
+            Must divide the number of both input and output features.
+            For dense group convolution, should be 1 (default).
+            For depthwise group convolution, should be the number of input features.
+        product_table: Product table for the space group.
+
+            May be omitted for simple convolutions.
+            Must be omitted if `algorithm="matrix"` and `shape` is supplied.
+        shape: Tuple that corresponds to shape of lattice.
+
+            Must be supplied unless `algorithm="matrix"` and `product_table` is given.
+        use_bias: Whether to add a bias to the output (default: True)
+        mask: Array of shape `(n_symm,)`, used to restrict the convolutional kernel.
+            Only parameters with nonzero mask are used.
+
+            For best performance, a boolean mask should be used.
+        param_dtype: The dtype of the weights.
+        precision: numerical precision of the computation,
+            see :class:`jax.lax.Precision` for details.
+        kernel_init: Initializer for the kernel. Defaults to Lecun normal.
+        bias_init: Initializer for the bias. Defaults to zero initialization.
+    """
+    layer_type = {
+        "FFT": equivariant_linear.EquivariantFFT,
+        "LAX": equivariant_linear.EquivariantLAX,
+        "matrix": equivariant_linear.EquivariantMatrix,
+    }[algorithm]
+    return layer_type(
+        features=features,
+        feature_group_count=feature_group_count,
+        product_table=product_table,
+        shape=shape,
+        use_bias=use_bias,
+        mask=mask,
+        param_dtype=param_dtype,
+        precision=precision,
+        kernel_init=kernel_init,
+        bias_init=bias_init,
+    )
 
 
 class DensePenultimate(Module):
@@ -59,7 +176,7 @@ class MultiHeadEquivariant(Module):
     share convolutional kernels."""
 
     algorithm: Literal["FFT", "LAX", "matrix"]
-    """COnvolution algorithm to use."""
+    """Convolution algorithm to use."""
     features: int
     """The number of output features. Will be the second dimension of the output."""
     heads: int
@@ -104,12 +221,8 @@ class MultiHeadEquivariant(Module):
         ), f"{self.heads = } must divide {self.features = }"
         self.d_eff = self.features // self.heads
 
-        Equivariant = {
-            "FFT": equivariant_linear.EquivariantFFT,
-            "LAX": equivariant_linear.EquivariantLAX,
-            "matrix": equivariant_linear.EquivariantMatrix,
-        }[self.algorithm]
         self.conv = Equivariant(
+            algorithm=self.algorithm,
             product_table=self.product_table,
             features=self.heads,
             shape=self.shape,
