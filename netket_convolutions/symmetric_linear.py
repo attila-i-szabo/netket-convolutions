@@ -1,5 +1,7 @@
 """GCNN embedding linear layers."""
 
+from warnings import warn
+
 import numpy as np
 import jax.numpy as jnp
 
@@ -26,11 +28,11 @@ class DenseSymmMatrix(Module):
     symmetries: HashableArray | None = None
     """A group of symmetry operations (or array of permutation indices) over which the layer should be invariant.
         Numpy/Jax arrays must be wrapped into an :class:`netket.utils.HashableArray`.
-
-        Must be omitted for simple convolutions if `shape` is supplied.
     """
     shape: tuple[int] | None = None
-    """Tuple that corresponds to shape of lattice, for simple convolutions."""
+    """Tuple that corresponds to shape of lattice, for simple convolutions.
+    
+    Ignored if `symmetries` is given."""
     use_bias: bool = True
     """Whether to add a bias to the output (default: True)."""
     mask: HashableArray | None = None
@@ -55,7 +57,8 @@ class DenseSymmMatrix(Module):
             assert self.shape is not None, "Must supply either `symmetries` or `shape`"
             self._symmetries = _kernel_expand.translation_table(self.shape)
         else:
-            assert self.shape is None, "Mustn't specify both `symmetries` and `shape`"
+            if self.shape is not None:
+                warn("DenseSymmMatrix.shape is overridden by symmetries")
             self._symmetries = np.asarray(self.symmetries)
 
         self.n_symm, self.n_sites = self._symmetries.shape

@@ -1,5 +1,7 @@
 """Group equivariant linear layers."""
 
+from warnings import warn
+
 import numpy as np
 import jax.numpy as jnp
 
@@ -29,10 +31,11 @@ class EquivariantMatrix(Module):
     For dense group convolution, should be 1 (default).
     For depthwise group convolution, should be the number of input features."""
     product_table: HashableArray | None = None
-    """Product table for the space group.
-    Must be omitted for simple convolutions if `shape` is supplied."""
+    """Product table for the space group."""
     shape: tuple[int] | None = None
-    """Tuple that corresponds to shape of lattice, for simple convolutions."""
+    """Tuple that corresponds to shape of lattice, for simple convolutions.
+    
+    Ignored if `product_table` is given."""
     use_bias: bool = True
     """Whether to add a bias to the output (default: True)."""
     mask: HashableArray | None = None
@@ -65,9 +68,8 @@ class EquivariantMatrix(Module):
             ), "Must supply either `product_table` or `shape`"
             self._product_table = _kernel_expand.translation_table(self.shape)
         else:
-            assert (
-                self.shape is None
-            ), "Mustn't specify both `product_table` and `shape`"
+            if self.shape is not None:
+                warn("EquivariantMatrix.shape is overridden by product_table")
             self._product_table = np.asarray(self.product_table)
 
         self.n_symm = len(self._product_table)

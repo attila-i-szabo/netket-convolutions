@@ -42,10 +42,10 @@ def DenseSymm(
 
             Numpy/Jax arrays must be wrapped into an :class:`netket.utils.HashableArray`.
             May be omitted for simple convolutions.
-            Must be omitted if `algorithm="matrix"` and `shape` is supplied.
         shape: Tuple that corresponds to shape of lattice.
 
-            Must be supplied unless `algorithm="matrix"` and `product_table` is given.
+            Ignored if `algorithm="matrix"` and `symmetries` is given.
+            Required in all other cases.
         use_bias: Whether to add a bias to the output (default: True)
         mask: Array of shape `(n_symm,)`, used to restrict the convolutional kernel.
             Only parameters with nonzero mask are used.
@@ -102,10 +102,10 @@ def Equivariant(
         product_table: Product table for the space group.
 
             May be omitted for simple convolutions.
-            Must be omitted if `algorithm="matrix"` and `shape` is supplied.
         shape: Tuple that corresponds to shape of lattice.
 
-            Must be supplied unless `algorithm="matrix"` and `product_table` is given.
+            Ignored if `algorithm="matrix"` and `product_table` is given.
+            Required in all other cases.
         use_bias: Whether to add a bias to the output (default: True)
         mask: Array of shape `(n_symm,)`, used to restrict the convolutional kernel.
             Only parameters with nonzero mask are used.
