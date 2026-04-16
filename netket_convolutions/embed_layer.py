@@ -1,11 +1,10 @@
 """GCNN embedding layers"""
 
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import jax.numpy as jnp
 
-import jax
 from jax import lax
 from jax.nn.initializers import zeros
 from flax.linen.module import Module, compact
@@ -13,9 +12,6 @@ from flax.linen.dtypes import promote_dtype
 
 from netket.utils import HashableArray
 from netket.utils.types import Array, DType, NNInitFunc
-from netket.utils.group import PermutationGroup
-from collections.abc import Sequence
-from netket.graph import Graph, Lattice
 from netket.errors import SymmModuleInvalidInputShape
 
 from ._base import default_equivariant_initializer, check_input_size

@@ -6,12 +6,12 @@ import jax.numpy as jnp
 
 
 def conv_fft(
-    x: jnp.ndarray,
-    kernel: jnp.ndarray,
+    x: jax.Array,
+    kernel: jax.Array,
     feature_group_count: int = 1,
     force_full_fft: bool = False,
     precision: Any = None,
-) -> jnp.ndarray:
+) -> jax.Array:
     """Performs an FFT-based convolution.
 
     Args:
@@ -77,12 +77,12 @@ def conv_fft(
 
 
 def conv_lax(
-    x: jnp.ndarray,
-    kernel: jnp.ndarray,
+    x: jax.Array,
+    kernel: jax.Array,
     padding: tuple[tuple[int]],
     feature_group_count: int = 1,
     precision: Any = None,
-) -> jnp.ndarray:
+) -> jax.Array:
     """Performs a periodically padded LAX convolution.
 
     Args:

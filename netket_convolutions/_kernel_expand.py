@@ -28,7 +28,7 @@ def translation_table(shape: tuple[int]) -> Array:
     return pt.reshape(size, size)
 
 
-def expanded_index(permutation: Array[int], shape: tuple[int]) -> np.ndarray[int]:
+def expanded_index(permutation: Array, shape: tuple[int]) -> np.ndarray:
     """Computes indices that map (n_input) dimension of kernels to
     (output_per_cell, input_per_cell, *shape) as used in FFT-based group convolution.
 
@@ -57,7 +57,7 @@ def expanded_index(permutation: Array[int], shape: tuple[int]) -> np.ndarray[int
     )
 
 
-def kernel_unmask(mask: Array[bool] | None) -> Callable[[jnp.ndarray], jnp.ndarray]:
+def kernel_unmask(mask: Array | None) -> Callable[[Array], Array]:
     """Constructs a function that restores a masked kernel to its full size
     and the required size of the masked kernel if it can be inferred."""
     if mask is None:
@@ -66,7 +66,7 @@ def kernel_unmask(mask: Array[bool] | None) -> Callable[[jnp.ndarray], jnp.ndarr
         full_shape = mask.size
         (indices,) = np.nonzero(mask)  # convert mask to list of indices
 
-        def unmask(kernel: jnp.ndarray) -> jnp.ndarray:
+        def unmask(kernel: Array) -> Array:
             kernel_full = jnp.zeros((*kernel.shape[:-1], full_shape), kernel.dtype)
             kernel_full = kernel_full.at[..., indices].set(kernel)
             return kernel_full
@@ -75,11 +75,11 @@ def kernel_unmask(mask: Array[bool] | None) -> Callable[[jnp.ndarray], jnp.ndarr
 
 
 def kernel_expand_full(
-    permutation: Array[int] | None,
+    permutation: Array | None,
     shape: tuple[int],
-    mask: Array[bool] | None,
+    mask: Array | None,
     dtype: DType,
-) -> Callable[[jnp.ndarray], jnp.ndarray]:
+) -> Callable[[Array], Array]:
     """Constructs a function that, given a (potentially masked) kernel,
     constructs the full kernel, expanded into translation group cosets.
 
@@ -111,7 +111,7 @@ def kernel_expand_full(
     unmask, kernel_size = kernel_unmask(mask)
     kernel_size = kernel_size or feature_size
 
-    def expand(kernel: jnp.ndarray) -> jnp.ndarray:
+    def expand(kernel: Array) -> Array:
         kernel = unmask(kernel)
         if permutation is None:
             kernel = kernel.reshape(*kernel.shape[:-1], 1, 1, *shape)
@@ -123,11 +123,11 @@ def kernel_expand_full(
 
 
 def kernel_expand_clipped(
-    permutation: Array[int] | None,
+    permutation: Array | None,
     shape: tuple[int],
-    mask: Array[bool],
+    mask: Array,
     dtype: DType,
-) -> tuple[Callable[[jnp.ndarray], jnp.ndarray], tuple[tuple[int]]]:
+) -> tuple[Callable[[Array], Array], tuple[tuple[int]]]:
     """Constructs a function that, given a masked kernel,
     constructs the full kernel, expanded into translation group cosets,
     clipped to the narrowest LAX convolution spec.
@@ -190,7 +190,7 @@ def kernel_expand_clipped(
         np.any(mask_in_index, -1), np.argmax(mask_in_index, -1), mask_indices.size
     )  # invalid index for positions not under the mask
 
-    def expand(kernel: jnp.ndarray) -> jnp.ndarray:
+    def expand(kernel: Array) -> Array:
         kernel = jnp.take(kernel, mask_in_index, axis=-1, fill_value=0)
         return kernel.astype(dtype)
 
