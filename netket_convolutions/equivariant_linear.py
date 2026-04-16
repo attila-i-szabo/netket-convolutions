@@ -1,7 +1,5 @@
 """Group equivariant linear layers."""
 
-from typing import Any
-
 import numpy as np
 import jax.numpy as jnp
 
@@ -9,6 +7,7 @@ from jax import lax
 from jax.nn.initializers import zeros
 from flax.linen.module import Module, compact
 from flax.linen.dtypes import promote_dtype
+from flax.linen.linear import PrecisionLike
 
 from netket.utils import HashableArray
 from netket.utils.types import Array, DType, NNInitFunc
@@ -42,7 +41,7 @@ class EquivariantMatrix(Module):
         For best performance a boolean mask should be used"""
     param_dtype: DType = jnp.float64
     """The dtype of the weights."""
-    precision: Any = None
+    precision: PrecisionLike = None
     """numerical precision of the computation see :class:`jax.lax.Precision` for details."""
 
     kernel_init: NNInitFunc = default_equivariant_initializer
@@ -175,7 +174,7 @@ class EquivariantFFT(Module):
     force_full_fft: bool = False
     """Use full-size complex FFT even if input and kernel are both real.
         Makes the output complex."""
-    precision: Any = None
+    precision: PrecisionLike = None
     """numerical precision of the computation see :class:`jax.lax.Precision` for details."""
 
     kernel_init: NNInitFunc = default_equivariant_initializer
@@ -272,7 +271,7 @@ class EquivariantLAX(Module):
     force_full_fft: bool = False
     """Use full-size complex FFT even if input and kernel are both real.
         Makes the output complex."""
-    precision: Any = None
+    precision: PrecisionLike = None
     """numerical precision of the computation see :class:`jax.lax.Precision` for details."""
 
     kernel_init: NNInitFunc = default_equivariant_initializer

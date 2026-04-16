@@ -88,7 +88,7 @@ class MultiHeadEquivariant(Module):
     Must be given if `algorithm="LAX"`."""
     param_dtype: DType = jnp.float64
     """The dtype of the weights."""
-    precision: Any = None
+    precision: PrecisionLike = None
     """numerical precision of the computation see :class:`jax.lax.Precision` for details."""
 
     kernel_init: NNInitFunc = default_equivariant_initializer

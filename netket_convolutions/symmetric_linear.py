@@ -1,7 +1,5 @@
 """GCNN embedding linear layers."""
 
-from typing import Any
-
 import numpy as np
 import jax.numpy as jnp
 
@@ -9,6 +7,7 @@ from jax import lax
 from jax.nn.initializers import zeros
 from flax.linen.module import Module, compact
 from flax.linen.dtypes import promote_dtype
+from flax.linen.linear import PrecisionLike
 
 from netket.utils import HashableArray
 from netket.utils.types import Array, DType, NNInitFunc
@@ -38,9 +37,9 @@ class DenseSymmMatrix(Module):
     """Optional array of shape `(n_sites,)` used to restrict the convolutional
         kernel. Only parameters with mask :math:'\ne 0' are used. For best performance a
         boolean mask should be used"""
-    param_dtype: Any = jnp.float64
+    param_dtype: DType = jnp.float64
     """The dtype of the weights."""
-    precision: Any = None
+    precision: PrecisionLike = None
     """numerical precision of the computation see :class:`jax.lax.Precision` for details."""
 
     kernel_init: NNInitFunc = default_equivariant_initializer
@@ -146,7 +145,7 @@ class DenseSymmFFT(Module):
     force_full_fft: bool = False
     """Use full-size complex FFT even if input and kernel are both real.
         Makes the output complex."""
-    precision: Any = None
+    precision: PrecisionLike = None
 
     kernel_init: NNInitFunc = default_equivariant_initializer
     """Initializer for the kernel. Defaults to Lecun normal."""
@@ -226,7 +225,7 @@ class DenseSymmLAX(Module):
     """Whether to add a bias to the output (default: True)."""
     param_dtype: DType = jnp.float64
     """The dtype of the weights."""
-    precision: Any = None
+    precision: PrecisionLike = None
 
     kernel_init: NNInitFunc = default_equivariant_initializer
     """Initializer for the kernel. Defaults to Lecun normal."""
