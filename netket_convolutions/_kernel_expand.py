@@ -68,7 +68,7 @@ def kernel_expand_full(
     The input kernel is expected to have shape
         (output_features, input_features, n_input)
     The output kernel has shape
-        ([output_features, output_per_cell], [input_features, input_per_cell], *shape)
+        (output_features, input_features, output_per_cell, input_per_cell, *shape)
     (pairs of axes in brackets are fused)
 
     Args:
@@ -95,7 +95,6 @@ def kernel_expand_full(
             kernel = kernel.reshape(*kernel.shape[:-1], 1, 1, *shape)
         else:
             kernel = kernel[..., index]
-        kernel = rearrange(kernel, "of if oc ic ... -> (of oc) (if ic) ...")
         return kernel.astype(dtype)
 
     return expand
@@ -114,7 +113,7 @@ def kernel_expand_clipped(
     The input kernel is expected to have shape
         (output_features, input_features, n_input)
     The output kernel has shape
-        ([output_features, output_per_cell], [input_features, input_per_cell], *shape_clip)
+        (output_features, input_features, output_per_cell, input_per_cell, *shape_clip)
     where shape_clip is the shape of the smallest rectangular block in which
     all the expanded kernels can be fit.
 
@@ -171,7 +170,6 @@ def kernel_expand_clipped(
 
     def expand(kernel: jnp.ndarray) -> jnp.ndarray:
         kernel = jnp.take(kernel, mask_in_index, axis=-1, fill_value=0)
-        kernel = rearrange(kernel, "of if oc ic ... -> (of oc) (if ic) ...")
         return kernel.astype(dtype)
 
     return expand, tuple(padding)
