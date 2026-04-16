@@ -57,7 +57,7 @@ def expanded_index(permutation: Array, shape: tuple[int]) -> np.ndarray:
     )
 
 
-def kernel_unmask(mask: Array | None) -> Callable[[Array], Array]:
+def kernel_unmask(mask: Array | None) -> tuple[Callable[[Array], Array], int]:
     """Constructs a function that restores a masked kernel to its full size
     and the required size of the masked kernel if it can be inferred."""
     if mask is None:
@@ -79,7 +79,7 @@ def kernel_expand_full(
     shape: tuple[int],
     mask: Array | None,
     dtype: DType,
-) -> Callable[[Array], Array]:
+) -> tuple[Callable[[Array], Array], int]:
     """Constructs a function that, given a (potentially masked) kernel,
     constructs the full kernel, expanded into translation group cosets.
 
@@ -127,7 +127,7 @@ def kernel_expand_clipped(
     shape: tuple[int],
     mask: Array,
     dtype: DType,
-) -> tuple[Callable[[Array], Array], tuple[tuple[int]]]:
+) -> tuple[Callable[[Array], Array], tuple[tuple[int]], int]:
     """Constructs a function that, given a masked kernel,
     constructs the full kernel, expanded into translation group cosets,
     clipped to the narrowest LAX convolution spec.
