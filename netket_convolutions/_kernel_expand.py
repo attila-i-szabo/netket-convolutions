@@ -6,9 +6,26 @@ from typing import Callable
 
 import numpy as np
 import jax.numpy as jnp
-from einops import rearrange
 
 from netket.utils.types import Array, DType
+
+
+def translation_table(shape: tuple[int]) -> Array:
+    """Computes product/symmetry table of an n-dimensional translation group."""
+    size = np.prod(shape)
+    # product table of each 1d component
+    ix = [(np.arange(x) - np.arange(x)[:, None]) % x for x in shape]
+    ix = np.ix_(*[np.ravel(x) for x in ix])
+    # product table with n_axes axes
+    # each axis stands for row and column direction along one axis
+    pt = np.arange(size).reshape(shape)[ix]
+    shape = [x for x in shape for _ in range(2)]
+    # separate row and column directions
+    pt = pt.reshape(shape)
+    # bring all row and all column directions together
+    pt = pt.transpose(list(range(0, len(shape), 2)) + list(range(1, len(shape), 2)))
+
+    return pt.reshape(size, size)
 
 
 def expanded_index(permutation: Array[int], shape: tuple[int]) -> np.ndarray[int]:
@@ -41,9 +58,10 @@ def expanded_index(permutation: Array[int], shape: tuple[int]) -> np.ndarray[int
 
 
 def kernel_unmask(mask: Array[bool] | None) -> Callable[[jnp.ndarray], jnp.ndarray]:
-    """Constructs a function that restores a masked to its full size."""
+    """Constructs a function that restores a masked kernel to its full size
+    and the required size of the masked kernel if it can be inferred."""
     if mask is None:
-        return lambda x: x
+        return (lambda x: x), None
     else:
         full_shape = mask.size
         (indices,) = np.nonzero(mask)  # convert mask to list of indices
@@ -53,7 +71,7 @@ def kernel_unmask(mask: Array[bool] | None) -> Callable[[jnp.ndarray], jnp.ndarr
             kernel_full = kernel_full.at[..., indices].set(kernel)
             return kernel_full
 
-        return unmask
+        return unmask, len(indices)
 
 
 def kernel_expand_full(
@@ -71,6 +89,8 @@ def kernel_expand_full(
         (output_features, input_features, output_per_cell, input_per_cell, *shape)
     (pairs of axes in brackets are fused)
 
+    Also returns the size of the masked kernel.
+
     Args:
         permutation: (n_output, n_input) integer array, containing the
             permutation group or the product table.
@@ -82,12 +102,14 @@ def kernel_expand_full(
         dtype: desired dtype of output kernels
     """
     if permutation is not None:
+        permutation = np.asarray(permutation)  # in case we got a PermutationGroup
         index = expanded_index(permutation, shape)
 
+    feature_size = np.prod(shape) if permutation is None else permutation.shape[1]
     if mask is not None:  # check size of mask
-        mask_size = np.prod(shape) if permutation is None else permutation.shape[1]
-        assert mask.shape == (mask_size,), f"Expected mask of size {mask_size}"
-    unmask = kernel_unmask(mask)
+        assert mask.shape == (feature_size,), f"Expected mask of size {feature_size}"
+    unmask, kernel_size = kernel_unmask(mask)
+    kernel_size = kernel_size or feature_size
 
     def expand(kernel: jnp.ndarray) -> jnp.ndarray:
         kernel = unmask(kernel)
@@ -97,7 +119,7 @@ def kernel_expand_full(
             kernel = kernel[..., index]
         return kernel.astype(dtype)
 
-    return expand
+    return expand, kernel_size
 
 
 def kernel_expand_clipped(
@@ -106,7 +128,7 @@ def kernel_expand_clipped(
     mask: Array[bool],
     dtype: DType,
 ) -> tuple[Callable[[jnp.ndarray], jnp.ndarray], tuple[tuple[int]]]:
-    """Constructs a function that, given a (potentially masked) kernel,
+    """Constructs a function that, given a masked kernel,
     constructs the full kernel, expanded into translation group cosets,
     clipped to the narrowest LAX convolution spec.
 
@@ -118,7 +140,7 @@ def kernel_expand_clipped(
     all the expanded kernels can be fit.
 
     Also returns the sequence of (left_pad, right_pad) tuples required for PBC
-    convolutions.
+    convolutions, and the required size of the masked kernel.
 
     Args:
         permutation: (n_output, n_input) integer array, containing the
@@ -172,4 +194,4 @@ def kernel_expand_clipped(
         kernel = jnp.take(kernel, mask_in_index, axis=-1, fill_value=0)
         return kernel.astype(dtype)
 
-    return expand, tuple(padding)
+    return expand, tuple(padding), len(mask_indices)
