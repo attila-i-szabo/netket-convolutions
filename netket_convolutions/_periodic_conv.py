@@ -80,6 +80,7 @@ def conv_fft(
 def conv_lax(
     x: jax.Array,
     kernel: jax.Array,
+    shape: tuple[int],
     padding: tuple[tuple[int]],
     feature_group_count: int = 1,
     precision: Any = None,
@@ -96,7 +97,7 @@ def conv_lax(
             Must divide the number of both input and output features.
     """
     out_features, in_features_per_group, out_per_cell, in_per_cell = kernel.shape[:4]
-    shape = kernel.shape[4:]
+    kernel_shape = kernel.shape[4:]
     n_cells = np.prod(shape)
     batch_dims = x.shape[:-2]
     batch_size = np.prod(batch_dims)
@@ -115,7 +116,7 @@ def conv_lax(
     # fuse kernel feature and per-cell dimensions for cuDNN
     kernel = jnp.moveaxis(kernel, 1, 2)
     kernel = kernel.reshape(
-        out_features * out_per_cell, in_features_per_group * in_per_cell, *shape
+        out_features * out_per_cell, in_features_per_group * in_per_cell, *kernel_shape
     )
 
     # pad input with periodic BC

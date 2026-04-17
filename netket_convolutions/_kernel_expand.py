@@ -186,7 +186,7 @@ def expand_clipped(
     # check size of mask
     n_input = np.prod(shape) if permutation is None else permutation.shape[1]
     assert mask.shape == (n_input,), f"Expected mask of size {n_input}"
-    mask = mask.astype(bool)
+    mask = np.asarray(mask, dtype=bool)
 
     if permutation is None:
         # dummy kernel mapping for sizing mask

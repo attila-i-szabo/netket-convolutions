@@ -324,6 +324,7 @@ class EquivariantLAX(Module):
         x = _periodic_conv.conv_lax(
             x,
             kernel,
+            self.shape,
             self.padding,
             feature_group_count=self.feature_group_count,
             precision=self.precision,

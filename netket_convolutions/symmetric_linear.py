@@ -276,7 +276,9 @@ class DenseSymmLAX(Module):
 
         kernel = self.expand(kernel)
 
-        x = _periodic_conv.conv_lax(x, kernel, self.padding, precision=self.precision)
+        x = _periodic_conv.conv_lax(
+            x, kernel, self.shape, self.padding, precision=self.precision
+        )
 
         if bias is not None:
             x += jnp.expand_dims(bias, 1)
