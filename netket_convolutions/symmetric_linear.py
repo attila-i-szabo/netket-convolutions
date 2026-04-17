@@ -61,10 +61,9 @@ class DenseSymmMatrix(Module):
                 warn("DenseSymmMatrix.shape is overridden by symmetries")
             self._symmetries = np.asarray(self.symmetries)
 
-        self.n_symm, self.n_sites = self._symmetries.shape
-
-        self.unmask, kernel_size = _kernel_expand.kernel_unmask(self.mask)
-        self.kernel_size = kernel_size or self.n_sites
+        self.unmask, self.kernel_size, self.n_sites = _kernel_expand.unmask(
+            self.symmetries, self.shape, self.mask
+        )
 
     @compact
     def __call__(self, x: Array) -> Array:
@@ -157,8 +156,8 @@ class DenseSymmFFT(Module):
 
     def setup(self):
         # pylint: disable=attribute-defined-outside-init
-        self.expand, self.kernel_size = _kernel_expand.kernel_expand_full(
-            self.symmetries, self.shape, self.mask, dtype=None
+        self.expand, self.kernel_size, self.n_sites = _kernel_expand.expand_full(
+            self.symmetries, self.shape, self.mask
         )
 
     @compact
@@ -237,10 +236,8 @@ class DenseSymmLAX(Module):
 
     def setup(self):
         # pylint: disable=attribute-defined-outside-init
-        self.expand, self.padding, self.kernel_size = (
-            _kernel_expand.kernel_expand_clipped(
-                self.symmetries, self.shape, self.mask, dtype=None
-            )
+        self.expand, self.padding, self.kernel_size, self.n_sites = (
+            _kernel_expand.expand_clipped(self.symmetries, self.shape, self.mask)
         )
 
     @compact

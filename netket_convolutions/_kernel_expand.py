@@ -7,6 +7,7 @@ from typing import Callable
 import numpy as np
 import jax.numpy as jnp
 
+from netket.utils.group import PermutationGroup
 from netket.utils.types import Array, DType
 
 
@@ -57,39 +58,12 @@ def expanded_index(permutation: Array, shape: tuple[int]) -> np.ndarray:
     )
 
 
-def kernel_unmask(mask: Array | None) -> tuple[Callable[[Array], Array], int]:
-    """Constructs a function that restores a masked kernel to its full size
-    and the required size of the masked kernel if it can be inferred."""
-    if mask is None:
-        return (lambda x: x), None
-    else:
-        full_shape = mask.size
-        (indices,) = np.nonzero(mask)  # convert mask to list of indices
-
-        def unmask(kernel: Array) -> Array:
-            kernel_full = jnp.zeros((*kernel.shape[:-1], full_shape), kernel.dtype)
-            kernel_full = kernel_full.at[..., indices].set(kernel)
-            return kernel_full
-
-        return unmask, len(indices)
-
-
-def kernel_expand_full(
-    permutation: Array | None,
-    shape: tuple[int],
+def unmask(
+    permutation: PermutationGroup | Array | None,
+    shape: tuple[int] | None,
     mask: Array | None,
-    dtype: DType,
-) -> tuple[Callable[[Array], Array], int]:
-    """Constructs a function that, given a (potentially masked) kernel,
-    constructs the full kernel, expanded into translation group cosets.
-
-    The input kernel is expected to have shape
-        (output_features, input_features, n_input)
-    The output kernel has shape
-        (output_features, input_features, output_per_cell, input_per_cell, *shape)
-    (pairs of axes in brackets are fused)
-
-    Also returns the size of the masked kernel.
+) -> tuple[Callable[[Array], Array], int, int]:
+    """Constructs a function that restores a masked kernel to its full size.
 
     Args:
         permutation: (n_output, n_input) integer array, containing the
@@ -99,35 +73,79 @@ def kernel_expand_full(
         shape: Order of the translation group along each axis.
         mask: (n_input,) boolean array indicating nonzero entries of the kernel,
             or `None` for all-to-all kernels.
-        dtype: desired dtype of output kernels
+
+    Returns:
+        unmask: function that builds the full kernel
+        kernel_size: required last dimension of the masked kernel
+        n_input: inferred input dimension
+    """
+    n_input = (
+        np.prod(shape) if permutation is None else np.asarray(permutation).shape[1]
+    )
+
+    if mask is None:
+        return (lambda x: x), n_input, n_input
+    else:
+        assert mask.shape == (n_input,), f"Expected mask of size {n_input}"
+        (indices,) = np.nonzero(mask)  # convert mask to list of indices
+
+        def unmask(kernel: Array) -> Array:
+            kernel_full = jnp.zeros((*kernel.shape[:-1], n_input), kernel.dtype)
+            kernel_full = kernel_full.at[..., indices].set(kernel)
+            return kernel_full
+
+        return unmask, len(indices), n_input
+
+
+def expand_full(
+    permutation: PermutationGroup | Array | None,
+    shape: tuple[int],
+    mask: Array | None,
+) -> tuple[Callable[[Array], Array], int, int]:
+    """Constructs a function that, given a (potentially masked) kernel,
+    constructs the full kernel, expanded into translation group cosets.
+
+    The input kernel is expected to have shape
+        (output_features, input_features, n_input)
+    The output kernel has shape
+        (output_features, input_features, output_per_cell, input_per_cell, *shape)
+    (pairs of axes in brackets are fused)
+
+    Args:
+        permutation: (n_output, n_input) integer array, containing the
+            permutation group or the product table.
+
+            Can also be `None` for simple convolutions.
+        shape: Order of the translation group along each axis.
+        mask: (n_input,) boolean array indicating nonzero entries of the kernel,
+            or `None` for all-to-all kernels.
+
+    Returns:
+        expand: function that builds the expanded kernel
+        kernel_size: required last dimension of the masked kernel
+        n_input: inferred input dimension
     """
     if permutation is not None:
         permutation = np.asarray(permutation)  # in case we got a PermutationGroup
         index = expanded_index(permutation, shape)
 
-    feature_size = np.prod(shape) if permutation is None else permutation.shape[1]
-    if mask is not None:  # check size of mask
-        assert mask.shape == (feature_size,), f"Expected mask of size {feature_size}"
-    unmask, kernel_size = kernel_unmask(mask)
-    kernel_size = kernel_size or feature_size
+    unmask_, kernel_size, n_input = unmask(permutation, shape, mask)
 
     def expand(kernel: Array) -> Array:
-        kernel = unmask(kernel)
+        kernel = unmask_(kernel)
         if permutation is None:
             kernel = kernel.reshape(*kernel.shape[:-1], 1, 1, *shape)
         else:
             kernel = kernel[..., index]
-        return kernel.astype(dtype)
 
-    return expand, kernel_size
+    return expand, kernel_size, n_input
 
 
-def kernel_expand_clipped(
-    permutation: Array | None,
+def expand_clipped(
+    permutation: PermutationGroup | Array | None,
     shape: tuple[int],
     mask: Array,
-    dtype: DType,
-) -> tuple[Callable[[Array], Array], tuple[tuple[int]], int]:
+) -> tuple[Callable[[Array], Array], tuple[tuple[int]], int, int]:
     """Constructs a function that, given a masked kernel,
     constructs the full kernel, expanded into translation group cosets,
     clipped to the narrowest LAX convolution spec.
@@ -149,11 +167,20 @@ def kernel_expand_clipped(
             Can also be `None` for simple convolutions.
         shape: Order of the translation group along each axis.
         mask: (n_input,) boolean array indicating nonzero entries of the kernel.
-        dtype: desired dtype of output kernels
+
+    Returns:
+        expand: function that builds the restricted expanded kernel
+        padding: tuple of (left, right) padding tuples for `jnp.pad`
+        kernel_size: required last dimension of the masked kernel
+        n_input: inferred input dimension
     """
+    # in case we got PermutationGroup or HashableArray
+    if permutation is not None:
+        permutation = np.asarray(permutation)
+
     # check size of mask
-    mask_size = np.prod(shape) if permutation is None else permutation.shape[1]
-    assert mask.shape == (mask_size,), f"Expected mask of size {mask_size}"
+    n_input = np.prod(shape) if permutation is None else permutation.shape[1]
+    assert mask.shape == (n_input,), f"Expected mask of size {n_input}"
     mask = mask.astype(bool)
 
     if permutation is None:
@@ -192,6 +219,5 @@ def kernel_expand_clipped(
 
     def expand(kernel: Array) -> Array:
         kernel = jnp.take(kernel, mask_in_index, axis=-1, fill_value=0)
-        return kernel.astype(dtype)
 
-    return expand, tuple(padding), len(mask_indices)
+    return expand, tuple(padding), len(mask_indices), n_input

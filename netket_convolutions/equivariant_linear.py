@@ -72,10 +72,9 @@ class EquivariantMatrix(Module):
                 warn("EquivariantMatrix.shape is overridden by product_table")
             self._product_table = np.asarray(self.product_table)
 
-        self.n_symm = len(self._product_table)
-
-        self.unmask, kernel_size = _kernel_expand.kernel_unmask(self.mask)
-        self.kernel_size = kernel_size or self.n_symm
+        self.unmask, self.kernel_size, self.n_symm = _kernel_expand.unmask(
+            self.product_table, self.shape, self.mask
+        )
 
     @compact
     def __call__(self, x: Array) -> Array:
@@ -190,8 +189,8 @@ class EquivariantFFT(Module):
             self.features % self.feature_group_count == 0
         ), f"{self.feature_group_count = } must divide {self.features = }"
 
-        self.expand, self.kernel_size = _kernel_expand.kernel_expand_full(
-            self.product_table, self.shape, self.mask, dtype=None
+        self.expand, self.kernel_size, self.n_symm = _kernel_expand.expand_full(
+            self.product_table, self.shape, self.mask
         )
 
     @compact
@@ -287,10 +286,8 @@ class EquivariantLAX(Module):
             self.features % self.feature_group_count == 0
         ), f"{self.feature_group_count = } must divide {self.features = }"
 
-        self.expand, self.padding, self.kernel_size = (
-            _kernel_expand.kernel_expand_clipped(
-                self.product_table, self.shape, self.mask, dtype=None
-            )
+        self.expand, self.padding, self.kernel_size, self.n_symm = (
+            _kernel_expand.expand_clipped(self.product_table, self.shape, self.mask)
         )
 
     @compact
