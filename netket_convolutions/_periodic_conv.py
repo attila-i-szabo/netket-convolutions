@@ -1,6 +1,7 @@
 """FFT and LAX convolutions with periodic boundary conditions."""
 
 from typing import Any
+import numpy as np
 import jax
 import jax.numpy as jnp
 
@@ -25,9 +26,9 @@ def conv_fft(
     """
     out_features, in_features_per_group, out_per_cell, in_per_cell = kernel.shape[:4]
     shape = kernel.shape[4:]
-    n_cells = jnp.prod(shape)
+    n_cells = np.prod(shape)
     batch_dims = x.shape[:-2]
-    batch_size = jnp.prod(batch_dims)
+    batch_size = np.prod(batch_dims)
     in_features, in_feature_size = x.shape[-2:]
 
     assert in_features == in_features_per_group * feature_group_count
@@ -55,7 +56,7 @@ def conv_fft(
         kernel = jnp.fft.fftn(kernel, s=shape).reshape(*kernel.shape[:5], n_fft)
     else:
         fft_shape = shape[:-1] + (shape[-1] // 2 + 1,)
-        n_fft = jnp.prod(fft_shape)
+        n_fft = np.prod(fft_shape)
         x = jnp.fft.rfftn(x, s=shape).reshape(*x.shape[:4], n_fft)
         kernel = jnp.fft.rfftn(kernel, s=shape).reshape(*kernel.shape[:5], n_fft)
 
@@ -96,9 +97,9 @@ def conv_lax(
     """
     out_features, in_features_per_group, out_per_cell, in_per_cell = kernel.shape[:4]
     shape = kernel.shape[4:]
-    n_cells = jnp.prod(shape)
+    n_cells = np.prod(shape)
     batch_dims = x.shape[:-2]
-    batch_size = jnp.prod(batch_dims)
+    batch_size = np.prod(batch_dims)
     in_features, in_feature_size = x.shape[-2:]
 
     assert in_features == in_features_per_group * feature_group_count

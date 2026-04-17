@@ -131,12 +131,17 @@ def expand_full(
 
     unmask_, kernel_size, n_input = unmask(permutation, shape, mask)
 
-    def expand(kernel: Array) -> Array:
-        kernel = unmask_(kernel)
-        if permutation is None:
-            kernel = kernel.reshape(*kernel.shape[:-1], 1, 1, *shape)
-        else:
-            kernel = kernel[..., index]
+    if permutation is None:
+
+        def expand(kernel: Array) -> Array:
+            kernel = unmask_(kernel)
+            return kernel.reshape(*kernel.shape[:-1], 1, 1, *shape)
+
+    else:
+
+        def expand(kernel: Array) -> Array:
+            kernel = unmask_(kernel)
+            return kernel[..., index]
 
     return expand, kernel_size, n_input
 
@@ -219,5 +224,6 @@ def expand_clipped(
 
     def expand(kernel: Array) -> Array:
         kernel = jnp.take(kernel, mask_in_index, axis=-1, fill_value=0)
+        return kernel
 
     return expand, tuple(padding), len(mask_indices), n_input
