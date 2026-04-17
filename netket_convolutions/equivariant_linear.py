@@ -172,9 +172,8 @@ class EquivariantFFT(Module):
         For best performance a boolean mask should be used"""
     param_dtype: DType = jnp.float64
     """The dtype of the weights."""
-    force_full_fft: bool = False
-    """Use full-size complex FFT even if input and kernel are both real.
-        Makes the output complex."""
+    force_full_fft: bool = True
+    """Use full-size complex FFT even if input and kernel are both real."""
     precision: PrecisionLike = None
     """numerical precision of the computation see :class:`jax.lax.Precision` for details."""
 

@@ -10,7 +10,7 @@ def conv_fft(
     x: jax.Array,
     kernel: jax.Array,
     feature_group_count: int = 1,
-    force_full_fft: bool = False,
+    force_full_fft: bool = True,
     precision: Any = None,
 ) -> jax.Array:
     """Performs an FFT-based convolution.
@@ -22,8 +22,11 @@ def conv_fft(
         feature_group_count: Number of feature groups for convolution.
             Must divide the number of both input and output features.
         force_full_fft: Use full-size complex FFT even if both inputs are real.
-            Makes the output complex.
     """
+    # dtypes and FFT algorithms
+    complex_result = jnp.iscomplexobj(x) or jnp.iscomplexobj(kernel)
+    use_full_fft = complex_result or force_full_fft
+
     out_features, in_features_per_group, out_per_cell, in_per_cell = kernel.shape[:4]
     shape = kernel.shape[4:]
     n_cells = np.prod(shape)
@@ -46,8 +49,6 @@ def conv_fft(
     kernel = kernel.reshape(
         feature_group_count, out_features_per_group, *kernel.shape[1:]
     )
-
-    use_full_fft = jnp.iscomplexobj(x) or jnp.iscomplexobj(kernel) or force_full_fft
 
     if use_full_fft:
         fft_shape = shape
@@ -74,7 +75,7 @@ def conv_fft(
     x = jnp.moveaxis(x, -1, -2)
     x = x.reshape(*batch_dims, out_features, out_feature_size)
 
-    return x
+    return x if complex_result else x.real
 
 
 def conv_lax(

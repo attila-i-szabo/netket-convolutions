@@ -144,9 +144,8 @@ class DenseSymmFFT(Module):
         boolean mask should be used"""
     param_dtype: DType = jnp.float64
     """The dtype of the weights."""
-    force_full_fft: bool = False
-    """Use full-size complex FFT even if input and kernel are both real.
-        Makes the output complex."""
+    force_full_fft: bool = True
+    """Use full-size complex FFT even if input and kernel are both real."""
     precision: PrecisionLike = None
 
     kernel_init: NNInitFunc = default_equivariant_initializer
