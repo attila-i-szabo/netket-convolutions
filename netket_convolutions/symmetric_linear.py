@@ -48,6 +48,12 @@ class DenseSymmMatrix(Module):
     """Initializer for the kernel. Defaults to Lecun normal."""
     bias_init: NNInitFunc = zeros
     """Initializer for the bias. Defaults to zero initialization."""
+    kernel_bias_init: NNInitFunc | None = None
+    """Initializer for BOTH kernel AND bias. 
+    Overrides kernel_init and bias_init if given.
+    
+    Should take the shape of the *kernel*, the shape of the bias is inferred from the
+    first dimension thereof. Should return a tuple `(kernel, bias)`."""
 
     def setup(self):
         # pylint: disable=attribute-defined-outside-init
@@ -83,19 +89,27 @@ class DenseSymmMatrix(Module):
 
         in_features = x.shape[-2]
 
-        if self.use_bias:
-            bias = self.param(
-                "bias", self.bias_init, (self.features,), self.param_dtype
+        if self.kernel_bias_init is None:
+            bias = (
+                self.param("bias", self.bias_init, (self.features,), self.param_dtype)
+                if self.use_bias
+                else None
+            )
+
+            kernel = self.param(
+                "kernel",
+                self.kernel_init,
+                (self.features, in_features, self.kernel_size),
+                self.param_dtype,
             )
         else:
-            bias = None
-
-        kernel = self.param(
-            "kernel",
-            self.kernel_init,
-            (self.features, in_features, self.kernel_size),
-            self.param_dtype,
-        )
+            assert self.use_bias, "kernel_bias_init only works if bias is allowed"
+            kernel, bias = self.param(
+                "kernel_bias",
+                self.kernel_bias_init,
+                (self.features, in_features, self.kernel_size),
+                self.param_dtype,
+            )
 
         x, kernel, bias = promote_dtype(x, kernel, bias, dtype=None)
 
