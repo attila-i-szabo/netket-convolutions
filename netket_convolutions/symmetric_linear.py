@@ -15,7 +15,7 @@ from netket.utils import HashableArray
 from netket.utils.types import Array, DType, NNInitFunc
 from netket.errors import SymmModuleInvalidInputShape
 
-from ._base import default_equivariant_initializer, check_input_size
+from ._base import default_kernel_init, check_input_size
 from . import _kernel_expand, _periodic_conv
 
 
@@ -44,7 +44,7 @@ class DenseSymmMatrix(Module):
     precision: PrecisionLike = None
     """numerical precision of the computation see :class:`jax.lax.Precision` for details."""
 
-    kernel_init: NNInitFunc = default_equivariant_initializer
+    kernel_init: NNInitFunc = default_kernel_init
     """Initializer for the kernel. Defaults to Lecun normal."""
     bias_init: NNInitFunc = zeros
     """Initializer for the bias. Defaults to zero initialization."""
@@ -162,7 +162,7 @@ class DenseSymmFFT(Module):
     """Use full-size complex FFT even if input and kernel are both real."""
     precision: PrecisionLike = None
 
-    kernel_init: NNInitFunc = default_equivariant_initializer
+    kernel_init: NNInitFunc = default_kernel_init
     """Initializer for the kernel. Defaults to Lecun normal."""
     bias_init: NNInitFunc = zeros
     """Initializer for the bias. Defaults to zero initialization."""
@@ -242,7 +242,7 @@ class DenseSymmLAX(Module):
     """The dtype of the weights."""
     precision: PrecisionLike = None
 
-    kernel_init: NNInitFunc = default_equivariant_initializer
+    kernel_init: NNInitFunc = default_kernel_init
     """Initializer for the kernel. Defaults to Lecun normal."""
     bias_init: NNInitFunc = zeros
     """Initializer for the bias. Defaults to zero initialization."""

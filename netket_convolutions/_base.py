@@ -7,7 +7,9 @@ from jax.nn.initializers import lecun_normal
 from einops import rearrange
 
 # All layers defined here have kernels of shape [out_features, in_features, n_symm]
-default_equivariant_initializer = lecun_normal(in_axis=1, out_axis=0)
+# or [out_features, in_features] for DensePenultimate
+default_kernel_init = lecun_normal(in_axis=1, out_axis=0)
+default_equivariant_initializer = default_kernel_init  # alias for backward comp
 
 
 def check_input_size(x: jnp.ndarray, n: int, strict: bool) -> jnp.ndarray:

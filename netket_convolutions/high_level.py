@@ -1,13 +1,12 @@
 """Layers that may wrap any convolution implementation."""
 
-from typing import Any, Literal
+from typing import Literal
 
-import numpy as np
 import jax.numpy as jnp
 from einops import rearrange
 
 from jax import lax
-from jax.nn.initializers import zeros, lecun_normal
+from jax.nn.initializers import zeros
 from flax.linen.module import Module, compact
 from flax.linen.dtypes import promote_dtype
 from flax.linen.linear import PrecisionLike, DotGeneralT
@@ -15,7 +14,7 @@ from flax.linen.linear import PrecisionLike, DotGeneralT
 from netket.utils import HashableArray
 from netket.utils.types import Array, DType, NNInitFunc
 
-from ._base import default_equivariant_initializer
+from ._base import default_kernel_init
 from . import equivariant_linear, symmetric_linear
 
 
@@ -28,7 +27,7 @@ def DenseSymm(
     mask: HashableArray | None = None,
     param_dtype: DType = jnp.float64,
     precision: PrecisionLike = None,
-    kernel_init: NNInitFunc = default_equivariant_initializer,
+    kernel_init: NNInitFunc = default_kernel_init,
     bias_init: NNInitFunc = zeros,
 ) -> Module:
     """General GCNN embedding layer.
@@ -85,7 +84,7 @@ def Equivariant(
     mask: HashableArray | None = None,
     param_dtype: DType = jnp.float64,
     precision: PrecisionLike = None,
-    kernel_init: NNInitFunc = default_equivariant_initializer,
+    kernel_init: NNInitFunc = default_kernel_init,
     bias_init: NNInitFunc = zeros,
 ) -> Module:
     """General equivariant layer.
@@ -137,12 +136,15 @@ def Equivariant(
 
 
 class DensePenultimate(Module):
-    """Dense linear layer acting on the penultimate dimension of the input."""
+    """Dense linear layer acting on the penultimate dimension of the input.
+
+    Unlike nn.Dense, the kernel is shaped as (out_features, in_features)
+    for better compatibility with the convolutional layers."""
 
     features: int
     use_bias: bool = True
     param_dtype: DType = jnp.float64
-    kernel_init: NNInitFunc = lecun_normal
+    kernel_init: NNInitFunc = default_kernel_init
     bias_init: NNInitFunc = zeros
     precision: PrecisionLike = None
     dot_general: DotGeneralT = lax.dot_general
@@ -152,7 +154,7 @@ class DensePenultimate(Module):
         kernel = self.param(
             "kernel",
             self.kernel_init,
-            (jnp.shape(x)[-2], self.features),
+            (self.features, jnp.shape(x)[-2]),
             self.param_dtype,
         )
         if self.use_bias:
@@ -163,7 +165,7 @@ class DensePenultimate(Module):
             bias = None
         x, kernel, bias = promote_dtype(x, kernel, bias)
         x = self.dot_general(
-            x, kernel, (((x.ndim - 2,), (0,)), ((), ())), precision=self.precision
+            x, kernel, (((x.ndim - 2,), (1,)), ((), ())), precision=self.precision
         )
         if bias is not None:
             x += bias
@@ -208,10 +210,8 @@ class MultiHeadEquivariant(Module):
     precision: PrecisionLike = None
     """numerical precision of the computation see :class:`jax.lax.Precision` for details."""
 
-    kernel_init: NNInitFunc = default_equivariant_initializer
+    kernel_init: NNInitFunc = default_kernel_init
     """Initializer for the kernel. Defaults to Lecun normal."""
-    dense_kernel_init: NNInitFunc = lecun_normal
-    """Initialiser for dense kernels if `mix_heads` is True."""
     bias_init: NNInitFunc = zeros
     """Initializer for the bias. Defaults to zero initialization."""
 
@@ -239,14 +239,14 @@ class MultiHeadEquivariant(Module):
                 features=self.features,
                 use_bias=False,
                 param_dtype=self.param_dtype,
-                kernel_init=self.dense_kernel_init,
+                kernel_init=self.kernel_init,
                 precision=self.precision,
             )
             self.after = DensePenultimate(
                 features=self.features,
                 use_bias=False,
                 param_dtype=self.param_dtype,
-                kernel_init=self.dense_kernel_init,
+                kernel_init=self.kernel_init,
                 precision=self.precision,
             )
 
