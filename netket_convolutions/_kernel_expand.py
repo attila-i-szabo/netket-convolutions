@@ -141,7 +141,7 @@ def expand_full(
 
         def expand(kernel: Array) -> Array:
             kernel = unmask_(kernel)
-            return kernel[..., index]
+            return jnp.take(kernel, index, axis=-1)
 
     return expand, kernel_size, n_input
 
